@@ -136,6 +136,7 @@ if ($UpdateWorkflows) {
     Write-Host ""
     Write-Info "Updating GitHub Workflows..."
     
+    # Update main deployment workflow
     $workflowPath = ".github/workflows/azure-deploy.yml"
     
     if (Test-Path $workflowPath) {
@@ -143,8 +144,7 @@ if ($UpdateWorkflows) {
             if (-not $Force) {
                 $response = Read-Host "azure-deploy.yml has been modified. Update anyway? (y/N)"
                 if ($response -ne 'y') {
-                    Write-Warning "Skipping workflow update"
-                    $UpdateWorkflows = $false
+                    Write-Warning "Skipping azure-deploy.yml update"
                 }
             }
         }
@@ -155,7 +155,7 @@ if ($UpdateWorkflows) {
             Backup-File $workflowPath
         }
         
-        # Create the complete workflow
+        # Create the complete deployment workflow
         $workflowContent = @'
 name: Deploy Azure Infrastructure
 
@@ -323,7 +323,296 @@ jobs:
             --github-token ${{ github.token }}
 '@
         $workflowContent | Out-File -FilePath $workflowPath -Encoding UTF8
-        Write-Success "Updated GitHub workflow"
+        Write-Success "Updated GitHub deployment workflow"
+    }
+    
+    # Add Copilot setup workflow
+    $copilotWorkflowPath = ".github/workflows/copilot-setup-steps.yml"
+    
+    if (Test-Path $copilotWorkflowPath) {
+        if (Test-FileModified $copilotWorkflowPath) {
+            if (-not $Force) {
+                $response = Read-Host "copilot-setup-steps.yml has been modified. Update anyway? (y/N)"
+                if ($response -ne 'y') {
+                    Write-Warning "Skipping copilot-setup-steps.yml update"
+                    $skipCopilotWorkflow = $true
+                }
+            }
+        }
+    }
+    
+    if (-not $skipCopilotWorkflow) {
+        if ($BackupFirst -or (Test-Path $copilotWorkflowPath)) {
+            Backup-File $copilotWorkflowPath
+        }
+        
+        # Create the Copilot setup workflow
+        $copilotSetupWorkflow = @'
+name: Copilot Setup and MCP Configuration
+
+on:
+  push:
+    paths:
+      - '.github/copilot-instructions.md'
+      - '.github/workflows/copilot-setup-steps.yml'
+      - '.mcp/**'
+      - '**/*.bicep'
+      - 'azure.yaml'
+  pull_request:
+    paths:
+      - '.github/copilot-instructions.md'
+      - '.mcp/**'
+      - '**/*.bicep'
+  workflow_dispatch:
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    name: Setup Copilot with Azure MCP
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js for MCP
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Validate Copilot instructions exist
+        run: |
+          if [ ! -f ".github/copilot-instructions.md" ]; then
+            echo "Missing .github/copilot-instructions.md file"
+            exit 1
+          fi
+          echo "[OK] Copilot instructions file found"
+
+      - name: Check Copilot instructions content
+        run: |
+          # Check for required MCP sections
+          required_sections=(
+            "## Azure MCP Server Integration"
+            "## Project Overview"
+            "## Key Principles"
+            "## Project Structure"
+            "## When Implementing Infrastructure"
+          )
+          
+          missing_sections=()
+          for section in "${required_sections[@]}"; do
+            if ! grep -q "$section" .github/copilot-instructions.md; then
+              missing_sections+=("$section")
+            fi
+          done
+          
+          if [ ${#missing_sections[@]} -gt 0 ]; then
+            echo "Missing required sections in copilot-instructions.md:"
+            printf '%s\n' "${missing_sections[@]}"
+            exit 1
+          fi
+          
+          echo "[OK] All required sections found in copilot instructions"
+
+      - name: Setup Azure MCP Server configuration
+        run: |
+          # Create MCP configuration directory
+          mkdir -p .mcp
+          
+          # Create MCP configuration file
+          cat > .mcp/config.json << EOF
+          {
+            "azure": {
+              "authentication": {
+                "type": "environment",
+                "tenantId": "\${AZURE_TENANT_ID}",
+                "clientId": "\${AZURE_CLIENT_ID}",
+                "clientSecret": "\${AZURE_CLIENT_SECRET}",
+                "subscriptionId": "\${AZURE_SUBSCRIPTION_ID}"
+              }
+            },
+            "server": {
+              "port": 3333,
+              "host": "localhost"
+            },
+            "features": {
+              "resourceDiscovery": true,
+              "costAnalysis": true,
+              "securityScanning": true,
+              "infrastructureMapping": true
+            }
+          }
+          EOF
+          
+          echo "[OK] MCP configuration created"
+
+      - name: Install Azure MCP Server
+        run: |
+          # Check if package.json exists, if not create it
+          if [ ! -f "package.json" ]; then
+            npm init -y
+          fi
+          
+          # Install MCP server as dev dependency
+          npm install --save-dev @modelcontextprotocol/server-azure
+          
+          echo "[OK] Azure MCP Server installed"
+
+      - name: Create MCP startup script
+        run: |
+          cat > .mcp/start-server.js << 'EOF'
+          const { AzureMCPServer } = require('@modelcontextprotocol/server-azure');
+          const config = require('./config.json');
+          
+          async function startServer() {
+            const server = new AzureMCPServer(config);
+            
+            server.on('ready', () => {
+              console.log('[OK] Azure MCP Server is ready');
+              console.log(`Server running at http://${config.server.host}:${config.server.port}`);
+            });
+            
+            server.on('error', (error) => {
+              console.error('[ERROR] MCP Server error:', error);
+            });
+            
+            await server.start();
+          }
+          
+          startServer().catch(console.error);
+          EOF
+          
+          echo "[OK] MCP startup script created"
+
+      - name: Create Copilot context file
+        run: |
+          # Generate context for Copilot
+          cat > .github/copilot-context.json << EOF
+          {
+            "project": {
+              "name": "${{ github.event.repository.name }}",
+              "type": "azure-infrastructure",
+              "language": "bicep",
+              "framework": "azd"
+            },
+            "infrastructure": {
+              "provider": "azure",
+              "iac_tool": "bicep",
+              "deployment_tool": "azd",
+              "ci_cd": "github_actions"
+            },
+            "mcp": {
+              "enabled": true,
+              "server": "@modelcontextprotocol/server-azure",
+              "features": ["resource-discovery", "cost-analysis", "security-scanning"]
+            },
+            "conventions": {
+              "naming": {
+                "resourceGroup": "rg-{project}-{environment}",
+                "keyVault": "kv-{project}-{env}-{unique}",
+                "storageAccount": "st{project}{env}{unique}",
+                "containerRegistry": "acr{project}{env}{unique}"
+              },
+              "environments": ["development", "staging", "production"]
+            },
+            "last_updated": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          
+          echo "[OK] Copilot context file created"
+
+      - name: Validate Azure YAML configuration
+        run: |
+          if [ ! -f "azure.yaml" ]; then
+            echo "Missing azure.yaml file"
+            exit 1
+          fi
+          
+          # Basic YAML validation
+          python -c "import yaml; yaml.safe_load(open('azure.yaml'))" || {
+            echo "Invalid YAML in azure.yaml"
+            exit 1
+          }
+          
+          echo "[OK] Azure YAML configuration is valid"
+
+      - name: Check for infrastructure documentation
+        run: |
+          # Ensure Bicep files have proper documentation
+          for bicep_file in $(find ./infra -name "*.bicep" -type f); do
+            echo "Checking: $bicep_file"
+            
+            # Check for parameter descriptions
+            if ! grep -q "@description" "$bicep_file"; then
+              echo "[WARN] $bicep_file lacks parameter descriptions"
+            fi
+            
+            # Check for module documentation
+            if ! grep -q "// =" "$bicep_file"; then
+              echo "[WARN] $bicep_file lacks section headers"
+            fi
+          done
+
+      - name: Test MCP Server connectivity
+        if: github.event_name == 'pull_request'
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          # Start MCP server in background
+          node .mcp/start-server.js &
+          MCP_PID=$!
+          
+          # Wait for server to start
+          sleep 5
+          
+          # Test server is running
+          curl -f http://localhost:3333/health || {
+            echo "MCP Server health check failed"
+            kill $MCP_PID
+            exit 1
+          }
+          
+          # Stop server
+          kill $MCP_PID
+          
+          echo "[OK] MCP Server connectivity test passed"
+
+      - name: Create PR comment with Copilot setup status
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = `
+            ## GitHub Copilot & MCP Setup Status
+            
+            **Copilot Instructions**: Found and validated
+            **MCP Server**: Configured and tested
+            **Project Context**: Generated successfully
+            
+            ### Available MCP Commands:
+            - \`@azure list resources\` - List all Azure resources
+            - \`@azure find naming-patterns\` - Discover naming conventions
+            - \`@azure costs current month\` - Get cost analysis
+            - \`@azure suggest optimizations\` - Get optimization tips
+            
+            ### Next Steps:
+            1. Create infrastructure issues using the templates
+            2. Use MCP commands in issues for discovery
+            3. Let Copilot implement based on discoveries
+            
+            The Azure MCP Server is configured and ready for use with Copilot Workspace!
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.name,
+              body: status
+            });
+'@
+        $copilotSetupWorkflow | Out-File -FilePath $copilotWorkflowPath -Encoding UTF8
+        Write-Success "Added/Updated Copilot setup workflow with MCP configuration"
     }
 }
 
@@ -696,11 +985,14 @@ Write-Host "Update Summary:" -ForegroundColor Green
 Write-Host "===============" -ForegroundColor Green
 
 if ($UpdateWorkflows) {
-    Write-Success "GitHub Workflows updated"
+    Write-Success "GitHub Workflows updated:"
+    Write-Success "  - azure-deploy.yml (deployment workflow)"
+    Write-Success "  - copilot-setup-steps.yml (MCP configuration)"
 }
 if ($UpdateIssueTemplates) {
     Write-Success "Issue Templates updated"
-    Write-Info "New MCP-aware template added"
+    Write-Info "  - Standard infrastructure request template"
+    Write-Info "  - MCP-aware infrastructure template added"
 }
 if ($UpdateCopilotInstructions) {
     Write-Success "Copilot Instructions updated with MCP integration"
@@ -715,6 +1007,7 @@ Write-Host "1. Review any backup files created" -ForegroundColor White
 Write-Host "2. Test the updated workflows" -ForegroundColor White
 Write-Host "3. Commit the changes to git" -ForegroundColor White
 Write-Host "4. Create new issues using the MCP-aware templates" -ForegroundColor White
+Write-Host "5. The copilot-setup-steps workflow will configure MCP automatically" -ForegroundColor White
 
 Write-Host ""
 Write-Success "Update complete!"
