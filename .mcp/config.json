@@ -1,0 +1,21 @@
+{
+  "azure": {
+    "authentication": {
+      "type": "environment",
+      "tenantId": "${AZURE_TENANT_ID}",
+      "clientId": "${AZURE_CLIENT_ID}",
+      "clientSecret": "${AZURE_CLIENT_SECRET}",
+      "subscriptionId": "${AZURE_SUBSCRIPTION_ID}"
+    }
+  },
+  "server": {
+    "port": 3333,
+    "host": "localhost"
+  },
+  "features": {
+    "resourceDiscovery": true,
+    "costAnalysis": true,
+    "securityScanning": true,
+    "infrastructureMapping": true
+  }
+}

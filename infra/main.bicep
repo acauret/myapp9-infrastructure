@@ -20,7 +20,6 @@ var tags = {
   Project: projectName
   Environment: environmentName
   DeploymentType: 'bicep'
-  LastDeployed: utcNow()
 }
 
 // ========== Resources ==========
@@ -35,10 +34,33 @@ module rg 'br/public:avm/res/resources/resource-group:0.4.0' = {
   }
 }
 
-// Add more resources here using Azure Verified Modules (AVM)
-// See: https://aka.ms/avm
+// Storage Account
+module storage 'br/public:avm/res/storage/storage-account:0.15.0' = {
+  name: 'storageAccount'
+  scope: resourceGroup('rg-${projectName}-${environmentName}')
+  params: {
+    name: 'st${projectName}${environmentName}${resourceToken}'
+    location: location
+    tags: tags
+    skuName: 'Standard_LRS'
+    kind: 'StorageV2'
+    accessTier: 'Hot'
+    allowBlobPublicAccess: false
+    supportsHttpsTrafficOnly: true
+    minimumTlsVersion: 'TLS1_2'
+    publicNetworkAccess: 'Enabled'
+    networkAcls: {
+      defaultAction: 'Allow'
+    }
+  }
+  dependsOn: [
+    rg
+  ]
+}
 
 // ========== Outputs ==========
 output resourceGroupName string = rg.outputs.name
 output location string = location
 output environmentName string = environmentName
+output storageAccountName string = storage.outputs.name
+output storageAccountId string = storage.outputs.resourceId

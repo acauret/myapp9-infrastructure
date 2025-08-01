@@ -1,0 +1,29 @@
+{
+  "project": {
+    "name": "myapp9-infrastructure",
+    "type": "azure-infrastructure",
+    "language": "bicep",
+    "framework": "azd"
+  },
+  "infrastructure": {
+    "provider": "azure",
+    "iac_tool": "bicep",
+    "deployment_tool": "azd",
+    "ci_cd": "github_actions"
+  },
+  "mcp": {
+    "enabled": true,
+    "server": "@modelcontextprotocol/server-azure",
+    "features": ["resource-discovery", "cost-analysis", "security-scanning"]
+  },
+  "conventions": {
+    "naming": {
+      "resourceGroup": "rg-{project}-{environment}",
+      "keyVault": "kv-{project}-{env}-{unique}",
+      "storageAccount": "st{project}{env}{unique}",
+      "containerRegistry": "acr{project}{env}{unique}"
+    },
+    "environments": ["development", "staging", "production"]
+  },
+  "last_updated": "2025-08-01T20:16:21Z"
+}
