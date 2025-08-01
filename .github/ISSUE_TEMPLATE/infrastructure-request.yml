@@ -1,0 +1,83 @@
+﻿name: Infrastructure Request
+description: Request new Azure infrastructure components
+title: "[INFRA] "
+labels: ["infrastructure", "copilot-workspace"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Infrastructure Request
+        Use this template to request new Azure infrastructure components.
+        
+  - type: input
+    id: service
+    attributes:
+      label: Azure Service
+      description: Which Azure service do you need?
+      placeholder: e.g., Container Registry, PostgreSQL, Storage Account
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: environments
+    attributes:
+      label: Target Environments
+      description: Which environments need this service?
+      multiple: true
+      options:
+        - Development
+        - Staging  
+        - Production
+        - All
+    validations:
+      required: true
+      
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Requirements
+      description: Describe the specific configuration requirements
+      placeholder: |
+        - SKU/Tier needed
+        - Network configuration  
+        - Security requirements
+        - Integration points
+        - Special features needed
+    validations:
+      required: true
+      
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: What other resources must exist first?
+      placeholder: |
+        - Virtual Network (for private endpoints)
+        - Key Vault (for secrets)
+        - Container Registry (for container deployments)
+        
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: How will we know this is complete?
+      placeholder: |
+        - [ ] Service deployed with specified configuration
+        - [ ] RBAC permissions configured
+        - [ ] Private endpoints configured (if required)
+        - [ ] Monitoring enabled
+        - [ ] Secrets stored in Key Vault
+        - [ ] Documentation updated
+    validations:
+      required: true
+      
+  - type: textarea
+    id: copilot-instructions
+    attributes:
+      label: Implementation Notes for Copilot
+      description: Any specific implementation guidance?
+      placeholder: |
+        - Use Azure Verified Module version X.Y.Z
+        - Follow existing patterns in the codebase
+        - Specific parameter values needed

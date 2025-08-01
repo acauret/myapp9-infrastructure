@@ -1,0 +1,33 @@
+﻿# Azure Developer CLI
+.azure/
+azure.env
+.env
+.env.*
+
+# Build outputs
+dist/
+build/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+*.key
+*.pem
+*.pfx
+secrets/
+sp-credentials.json
+
+# Terraform state (if used)
+*.tfstate
+*.tfstate.*
+.terraform/

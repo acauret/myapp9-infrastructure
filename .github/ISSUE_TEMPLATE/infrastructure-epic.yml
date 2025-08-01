@@ -1,0 +1,54 @@
+﻿name: Infrastructure Epic
+description: Track multiple infrastructure components
+title: "[EPIC] Complete Infrastructure Setup"
+labels: ["infrastructure", "epic"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Infrastructure Epic
+        Use this to track implementation of multiple infrastructure components.
+        
+  - type: textarea
+    id: components
+    attributes:
+      label: Required Components
+      description: List all infrastructure components needed
+      value: |
+        - [ ] Networking (VNet, Subnets, NSGs)
+        - [ ] Key Vault
+        - [ ] Container Registry
+        - [ ] PostgreSQL Database
+        - [ ] Redis Cache
+        - [ ] Storage Accounts
+        - [ ] Container Apps Environment
+        - [ ] Container Apps (Frontend, API, Worker)
+        - [ ] Logic Apps
+        - [ ] Service Bus
+        - [ ] Application Gateway
+        - [ ] Monitoring (App Insights, Log Analytics)
+    validations:
+      required: true
+      
+  - type: textarea
+    id: architecture
+    attributes:
+      label: Architecture Overview
+      description: Describe or diagram the architecture
+      placeholder: |
+        Provide an overview of how components connect
+        
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Implementation Order
+      description: Order of implementation considering dependencies
+      value: |
+        1. Core networking infrastructure
+        2. Key Vault (required by most services)
+        3. Container Registry
+        4. Data services (PostgreSQL, Redis, Storage)
+        5. Container Apps Environment
+        6. Application services
+        7. Integration services
+        8. Monitoring and security
