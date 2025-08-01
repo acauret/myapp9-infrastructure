@@ -1,0 +1,12 @@
+{
+  "name": "myapp9-infrastructure",
+  "version": "1.0.0",
+  "description": "Azure infrastructure for myapp9",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

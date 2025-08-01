@@ -20,7 +20,6 @@ var tags = {
   Project: projectName
   Environment: environmentName
   DeploymentType: 'bicep'
-  LastDeployed: utcNow()
 }
 
 // ========== Resources ==========
