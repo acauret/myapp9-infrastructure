@@ -1,0 +1,45 @@
+﻿name: MCP-Aware Infrastructure Request
+description: Request infrastructure with automatic discovery
+title: "[INFRA-MCP] "
+labels: ["infrastructure", "copilot-workspace", "mcp-enabled"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## MCP-Aware Infrastructure Request
+        This template uses Azure MCP for intelligent infrastructure creation.
+        
+  - type: textarea
+    id: objective
+    attributes:
+      label: What do you want to build?
+      description: Describe the infrastructure you need
+      placeholder: |
+        I need a PostgreSQL database for my application with high availability...
+    validations:
+      required: true
+      
+  - type: textarea
+    id: mcp-instructions
+    attributes:
+      label: Copilot MCP Discovery Instructions
+      description: Pre-filled MCP commands for Copilot
+      value: |
+        1. Discover existing infrastructure:
+        ```
+        @azure list resources
+        @azure find naming-patterns
+        @azure find resources type:Microsoft.Network/virtualNetworks
+        @azure find resources type:Microsoft.KeyVault/vaults
+        @azure find resources type:Microsoft.OperationalInsights/workspaces
+        ```
+        
+        2. Based on discoveries:
+        - Follow existing naming patterns
+        - Use same location as other resources
+        - Integrate with existing VNet if found
+        - Store secrets in existing Key Vault
+        - Use existing Log Analytics for monitoring
+        
+        3. Create Bicep template that fits discovered infrastructure

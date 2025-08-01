@@ -48,6 +48,19 @@ body:
       required: true
       
   - type: textarea
+    id: mcp-discovery
+    attributes:
+      label: MCP Discovery Instructions
+      description: Instructions for Copilot to discover existing infrastructure
+      value: |
+        Use Azure MCP to discover existing infrastructure:
+        ```
+        @azure list resources
+        @azure find resources type:[relevant-type]
+        @azure get naming-patterns
+        ```
+      
+  - type: textarea
     id: dependencies
     attributes:
       label: Dependencies
@@ -79,5 +92,5 @@ body:
       description: Any specific implementation guidance?
       placeholder: |
         - Use Azure Verified Module version X.Y.Z
-        - Follow existing patterns in the codebase
+        - Follow existing patterns discovered by MCP
         - Specific parameter values needed
